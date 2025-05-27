@@ -42,7 +42,7 @@ def compute_dtw_features(feat1, feat2):
     x = np.array(feat1["mfcc"])
     y = np.array(feat2["mfcc"])
     dist = cdist(x.T, y.T, metric='euclidean')
-    D, wp = librosa.sequence.dtw(D=dist)
+    D, wp = librosa.sequence.dtw(C=dist)
 
     wp = wp[::-1]  # Time warp path
     path = [{"x": int(i), "y": int(j)} for i, j in wp]

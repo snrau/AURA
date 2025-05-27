@@ -31,5 +31,7 @@ async def upload(files: list[UploadFile] = File(...)):
 @app.get("/results")
 def list_results():
     file = sorted(glob.glob("outputs/audio_analysis.json"))
-    filename = [os.path.basename(file) ]
-    return {"results": filename}
+    if not file:
+        return {"results": []}
+    filenames = [os.path.basename(file[0])]
+    return {"results": filenames}
