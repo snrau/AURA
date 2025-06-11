@@ -2,8 +2,8 @@
     import { onMount } from "svelte";
     import axios from "axios";
     import WaveformVisualizer from "./components/waveformVis.svelte";
-    import FeatureCharts from "./components/featureCharts.svelte";
-    import MFCCHeatmap from "./components/mfccHeatmap.svelte";
+    import LineChart from "./components/LineChart.svelte";
+    import OnsetComparison from "./components/OnsetComparison.svelte";
 
     // Backend base URL
     const BASE_URL = "http://localhost:8000";
@@ -73,6 +73,7 @@
 
         try {
             const res = await axios.get(`${BASE_URL}/results/${selectedFile}`);
+            console.log("Loaded result file:", res.data);
             loadedResult = res.data;
             uploadResult = null; // Clear upload result view if any
         } catch (err) {
@@ -114,27 +115,102 @@
 
     <section style="margin-top: 2rem;">
         {#if uploadResult}
-            <h2>Upload Result (Current Analysis)</h2>
-            <pre>{JSON.stringify(uploadResult, null, 2)}</pre>
             <WaveformVisualizer analysis={uploadResult} />
-            <FeatureCharts analysis={loadedResult} />
-            <MFCCHeatmap analysis={loadedResult} />
+            <!--<FeatureCharts analysis={loadedResult.features} />
+            <MFCCHeatmap analysis={loadedResult.features} />-->
+            <OnsetComparison
+                onsetsA={uploadResult.features.onsets.fileA}
+                onsetsB={uploadResult.features.onsets.fileB}
+                onsetStrengthA={uploadResult.features.onsets_strength.fileA}
+                onsetStrengthB={uploadResult.features.onsets_strength.fileB}
+                durationA={uploadResult.features.duration.fileA}
+                durationB={uploadResult.features.duration.fileB}
+            />
+            <LineChart
+                title="F0"
+                valuesA={uploadResult.features.f0.fileA}
+                valuesB={uploadResult.features.f0.fileB}
+                files={uploadResult.files}
+            />
+            <LineChart
+                title="RMS"
+                valuesA={uploadResult.features.rms.fileA}
+                valuesB={uploadResult.features.rms.fileB}
+                files={uploadResult.files}
+            />
+            <LineChart
+                title="Spectral Centroid"
+                valuesA={uploadResult.features.spectral_centroid.fileA}
+                valuesB={uploadResult.features.spectral_centroid.fileB}
+                files={uploadResult.files}
+            />
+            <LineChart
+                title="Vibrato"
+                valuesA={uploadResult.features.vibrato.fileA}
+                valuesB={uploadResult.features.vibrato.fileB}
+                files={uploadResult.files}
+            />
+            <LineChart
+                title="F0 Framewise"
+                valuesA={uploadResult.features.f0_framewise.fileA}
+                valuesB={uploadResult.features.f0_framewise.fileB}
+                files={uploadResult.files}
+            />
         {/if}
         {#if loadedResult}
-            <h2>Loaded Analysis Result</h2>
-            <pre>{JSON.stringify(loadedResult, null, 2)}</pre>
             <WaveformVisualizer analysis={loadedResult} />
-            <FeatureCharts analysis={loadedResult} />
-            <MFCCHeatmap analysis={loadedResult} />
+            <!--<FeatureCharts analysis={loadedResult.features} />
+            <MFCCHeatmap analysis={loadedResult.features} />-->
+            <OnsetComparison
+                onsetsA={loadedResult.features.onsets.fileA}
+                onsetsB={loadedResult.features.onsets.fileB}
+                onsetStrengthA={loadedResult.features.onsets_strength.fileA}
+                onsetStrengthB={loadedResult.features.onsets_strength.fileB}
+                durationA={loadedResult.features.duration.fileA}
+                durationB={loadedResult.features.duration.fileB}
+            />
+            <LineChart
+                title="F0"
+                valuesA={loadedResult.features.f0.fileA}
+                valuesB={loadedResult.features.f0.fileB}
+                files={loadedResult.files}
+            />
+            <LineChart
+                title="RMS"
+                valuesA={loadedResult.features.rms.fileA}
+                valuesB={loadedResult.features.rms.fileB}
+                files={loadedResult.files}
+            />
+            <LineChart
+                title="Spectral Centroid"
+                valuesA={loadedResult.features.spectral_centroid.fileA}
+                valuesB={loadedResult.features.spectral_centroid.fileB}
+                files={loadedResult.files}
+            />
+            <LineChart
+                title="Vibrato"
+                valuesA={loadedResult.features.vibrato.fileA}
+                valuesB={loadedResult.features.vibrato.fileB}
+                files={loadedResult.files}
+            />
+            <LineChart
+                title="F0 Framewise"
+                valuesA={loadedResult.features.f0_framewise.fileA}
+                valuesB={loadedResult.features.f0_framewise.fileB}
+                files={loadedResult.files}
+            />
         {/if}
     </section>
 </main>
 
 <style>
     main {
-        max-width: 800px;
         margin: 2rem auto;
         font-family: sans-serif;
+    }
+
+    section {
+        width: 1500px;
     }
 
     input[type="file"] {
