@@ -228,6 +228,17 @@ def compute_dtw_own(feat1, feat2, hop_length, energy_thresh, weights):
     return path
 
 
+def compute_cos_similarity(feat1, feat2):
+    # We assume MFCCs are used for alignment (13 x N)
+    x = np.array(feat1["mfcc"])
+    y = np.array(feat2["mfcc"])
+
+    x_1 = librosa.feature.stack_memory(x, n_steps=10, delay=3)
+    x_2 = librosa.feature.stack_memory(y, n_steps=10, delay=3)
+    xsim = librosa.segment.cross_similarity(x_1, x_2, mode='affinity')
+
+    return xsim
+
 
 def analyze_audio_files(file_paths):
     features = [extract_features(file) for file in file_paths]
@@ -235,6 +246,8 @@ def analyze_audio_files(file_paths):
     dtw_chroma = compute_dtw_cens(features[0], features[1], hop_length_dtw)
     dtw_mixed = compute_dtw_mixed(features[0], features[1], hop_length_dtw)
     dtw_own = compute_dtw_own(features[0], features[1], hop_length_dtw, 0.5, (0.2, 0.1, 1.0))  #rms threshhold, (mfcc, chroma, f0)
+    sim = compute_cos_similarity(features[0], features[1])
+
 
     result = {
         "files": [os.path.basename(p) for p in file_paths],
@@ -285,7 +298,8 @@ def analyze_audio_files(file_paths):
             "dtw_own": dtw_own,
             "dtw_chroma": dtw_chroma,
             "dtw_mixed": dtw_mixed
-        }
+        },
+        "similarity": sim
     }
 
 

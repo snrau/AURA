@@ -4,6 +4,7 @@
     import WaveformVisualizer from "./components/waveformVis.svelte";
     import LineChart from "./components/LineChart.svelte";
     import OnsetComparison from "./components/OnsetComparison.svelte";
+    import MatrixChart from "./components/MatrixChart.svelte";
 
     // Backend base URL
     const BASE_URL = "http://localhost:8000";
@@ -156,6 +157,12 @@
                 valuesB={uploadResult.features.f0_framewise.fileB}
                 files={uploadResult.files}
             />
+
+            <MatrixChart
+                title="Cross Similarity"
+                matrix={uploadResult.similarity}
+                files={uploadResult.files}
+            />
         {/if}
         {#if loadedResult}
             <WaveformVisualizer analysis={loadedResult} />
@@ -197,6 +204,12 @@
                 title="F0 Framewise"
                 valuesA={loadedResult.features.f0_framewise.fileA}
                 valuesB={loadedResult.features.f0_framewise.fileB}
+                files={loadedResult.files}
+            />
+
+            <MatrixChart
+                title="Cross Similarity"
+                similarity={loadedResult.similarity}
                 files={loadedResult.files}
             />
         {/if}
