@@ -1,28 +1,30 @@
 <script>
     import { onMount } from "svelte";
-    import { scaleLinear, interpolateBlues } from "d3";
+    import { scaleLinear, interpolateBlues, interpolateRdBu } from "d3";
 
     export let matrix = [[]]; // 2D array of values
     export let title = ""
     export let maxValue = 1; // for scaling colors
-    export let cellSize = 1; // pixels per cell
+    export let cellSize = 3; // pixels per cell
     export let gap = 0; // gap between cells
 
     let canvas;
     let ctx;
 
     let colorScale = scaleLinear()
-        .domain([0.3, maxValue])       // input range
-        .range([0, 1])               // normalized to 0–1 for the interpolator
+        .domain([-maxValue, 0, maxValue])       // input range
+        .range([0, 0.5, 1])               // normalized to 0–1 for the interpolator
+
 
     function getColor(value) {
         // Normalize value between 0 and 1
         const t = Math.max(0, Math.min(1, colorScale(value)));
-        return interpolateBlues(t);
+        return interpolateRdBu(t);
     }
 
     function drawMatrix() {
         if (!ctx || !matrix.length || !matrix[0].length) return;
+        
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -31,7 +33,7 @@
                 const value = matrix[row][col];
                 ctx.fillStyle = getColor(value);
                 const x = col * (cellSize + gap);
-                const y = row * (cellSize + gap);
+                const y = (matrix.length - 1 - row) * (cellSize + gap);
                 ctx.fillRect(x, y, cellSize, cellSize);
             }
         }
@@ -43,12 +45,13 @@
         ctx = canvas.getContext("2d");
         canvas.width = matrix[0].length * (cellSize + gap) - gap;
         canvas.height = matrix.length * (cellSize + gap) - gap;
+        console.log(matrix.length)
         drawMatrix();
     });
 </script>
 
 <div>
-    <h3>{title}p</h3>
+    <h3>{title} {matrix?.length} x {matrix[0].length}</h3>
     <canvas bind:this={canvas}></canvas>
 </div>
 

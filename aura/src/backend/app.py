@@ -6,6 +6,7 @@ from audio_analysis import analyze_audio_files
 import glob
 
 app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -44,6 +45,7 @@ def list_results(filename: str):
     file_path = os.path.join("outputs", filename)
     if os.path.exists(file_path):
         headers = {
+            "Access-Control-Allow-Origin": "*",
             "Cache-Control": "no-cache, no-store, must-revalidate",
             "Pragma": "no-cache",
             "Expires": "0"

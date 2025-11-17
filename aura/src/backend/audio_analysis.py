@@ -3,6 +3,7 @@ import numpy as np
 import json
 import os
 from scipy.spatial.distance import cdist
+from sklearn.metrics.pairwise import cosine_similarity
 from scipy.signal import get_window
 from scipy.fft import fft, fftfreq
 
@@ -75,7 +76,6 @@ def extract_features(audio_path, frame_duration=0.25):
     spec_centroid = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
 
     chroma_cens = librosa.feature.chroma_cens(y=y, sr=sr, hop_length=hop_length)
-
     f0_frames = []
     for i in range(0, len(f0), frame_length):
         frame = np.array(f0[i:i+frame_length])
@@ -228,27 +228,39 @@ def compute_dtw_own(feat1, feat2, hop_length, energy_thresh, weights):
     return path
 
 
-def compute_cos_similarity(feat1, feat2):
+def compute_cos_similarity(feat1, feat2, context_window=10):
     # We assume MFCCs are used for alignment (13 x N)
     x = np.array(feat1["mfcc"])
     y = np.array(feat2["mfcc"])
 
-    x_1 = librosa.feature.stack_memory(x, n_steps=10, delay=3)
-    x_2 = librosa.feature.stack_memory(y, n_steps=10, delay=3)
-    xsim = librosa.segment.cross_similarity(x_1, x_2, mode='affinity')
+
+    #x_1 = librosa.feature.stack_memory(x, n_steps=10, delay=3)
+    #x_2 = librosa.feature.stack_memory(y, n_steps=10, delay=3)
+    #xsim = librosa.segment.cross_similarity(x_1, x_2, mode='affinity')
+    def avg_frames(mfcc, window):
+        # Compute mean MFCC vectors over a sliding window (temporal context)
+        N = mfcc.shape[1]
+        return np.array([mfcc[:, i:i+window].mean(axis=1) for i in range(N - window + 1)])
+
+    x_1 = avg_frames(x, context_window)  # shape (N1-window+1, 13)
+    x_2 = avg_frames(y, context_window)  # shape (N2-window+1, 13)
+    xsim = cosine_similarity(x_1, x_2).tolist()
 
     return xsim
 
 
 def analyze_audio_files(file_paths):
+    print('analyzing')
     features = [extract_features(file) for file in file_paths]
+    print('features 1')
     dtw_mfcc = compute_dtw_mfcc(features[0], features[1], hop_length_dtw)
     dtw_chroma = compute_dtw_cens(features[0], features[1], hop_length_dtw)
     dtw_mixed = compute_dtw_mixed(features[0], features[1], hop_length_dtw)
     dtw_own = compute_dtw_own(features[0], features[1], hop_length_dtw, 0.5, (0.2, 0.1, 1.0))  #rms threshhold, (mfcc, chroma, f0)
+    print('dtw')
     sim = compute_cos_similarity(features[0], features[1])
 
-
+    print('feature extracted')
     result = {
         "files": [os.path.basename(p) for p in file_paths],
         "features": {
