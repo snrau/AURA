@@ -12,15 +12,18 @@
     const height = 200;
     const margin = 20;
 
-    function drawWaveform(waveform, color, offsetY = 0) {
+    function drawWaveform(waveform, duration, color, offsetY = 0) {
         if (!waveform || waveform.length === 0) return;
         ctx.strokeStyle = color;
         ctx.lineWidth = 1;
         ctx.beginPath();
 
-        const step = Math.max(1, Math.floor(waveform.length / width));
+        console.log(duration, waveform.length);
+
+        const step = Math.max(1, Math.floor(duration / width));
 
         for (let x = 0; x < width; x++) {
+            if (waveform.length < x * step) break;
             const slice = waveform.slice(x * step, (x + 1) * step);
             if (slice.length === 0) break;
             const yVal = slice.reduce((a, b) => a + b, 0) / slice.length;
@@ -114,24 +117,28 @@
         waveformA = waveformA.map((v) => v / globalMax);
         waveformB = waveformB.map((v) => v / globalMax);
 
-        drawWaveform(waveformA, "#3498db", margin);
-        drawWaveform(waveformB, "#e74c3c", height + margin * 2);
+        const maxLength = Math.max(waveformA.length, waveformB.length);
+
+        drawWaveform(waveformA, maxLength, "#3498db", margin);
+        drawWaveform(waveformB, maxLength, "#e74c3c", height + margin * 2);
 
         const durationA = waveformA.length / 22050; // or: (mfccA.length * hopSize) / sampleRate;
         const durationB = waveformB.length / 22050;
 
-        console.log(durationA, durationB);
+        const maxDuration = Math.max(durationA, durationB);
+
+        console.log(durationA, durationB, maxDuration);
 
         // Onset overlays
         drawOnsets(
             analysis.features.onsets.fileA,
-            durationA,
+            maxDuration,
             height + margin,
             "#2980b9",
         );
         drawOnsets(
             analysis.features.onsets.fileB,
-            durationB,
+            maxDuration,
             height + margin * 2,
             "#c0392b",
         );

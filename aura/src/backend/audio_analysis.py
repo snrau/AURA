@@ -234,17 +234,18 @@ def compute_cos_similarity(feat1, feat2, context_window=10):
     y = np.array(feat2["mfcc"])
 
 
-    #x_1 = librosa.feature.stack_memory(x, n_steps=10, delay=3)
-    #x_2 = librosa.feature.stack_memory(y, n_steps=10, delay=3)
-    #xsim = librosa.segment.cross_similarity(x_1, x_2, mode='affinity')
-    def avg_frames(mfcc, window):
+    x_1 = librosa.feature.stack_memory(x, n_steps=10, delay=3)
+    x_2 = librosa.feature.stack_memory(y, n_steps=10, delay=3)
+    xsim = librosa.segment.cross_similarity(x_1, x_2, mode='affinity').tolist()
+    
+    #def avg_frames(mfcc, window):
         # Compute mean MFCC vectors over a sliding window (temporal context)
-        N = mfcc.shape[1]
-        return np.array([mfcc[:, i:i+window].mean(axis=1) for i in range(N - window + 1)])
+    #    N = mfcc.shape[1]
+    #    return np.array([mfcc[:, i:i+window].mean(axis=1) for i in range(N - window + 1)])
 
-    x_1 = avg_frames(x, context_window)  # shape (N1-window+1, 13)
-    x_2 = avg_frames(y, context_window)  # shape (N2-window+1, 13)
-    xsim = cosine_similarity(x_1, x_2).tolist()
+    #x_1 = avg_frames(x, context_window)  # shape (N1-window+1, 13)
+    #x_2 = avg_frames(y, context_window)  # shape (N2-window+1, 13)
+    #xsim = cosine_similarity(x_1, x_2).tolist()
 
     return xsim
 

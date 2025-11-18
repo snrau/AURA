@@ -55,7 +55,10 @@
 
         try {
             const res = await axios.post(`${BASE_URL}/upload`, formData, {
-                headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "multipart/form-data" },
+                headers: {
+                    "Access-Control-Allow-Origin": "*",
+                    "Content-Type": "multipart/form-data",
+                },
             });
             uploadResult = res.data;
 

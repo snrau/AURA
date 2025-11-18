@@ -1,0 +1,25 @@
+# Logs
+aura/logs
+aura/*.log
+aura/npm-debug.log*
+aura/yarn-debug.log*
+aura/yarn-error.log*
+aura/pnpm-debug.log*
+aura/lerna-debug.log*
+
+aura/node_modules
+aura/dist
+aura/dist-ssr
+aura/*.local
+aura/back
+
+# Editor directories and files
+aura/.vscode/*
+aura/!.vscode/extensions.json
+aura/.idea
+aura/.DS_Store
+aura/*.suo
+aura/*.ntvs*
+aura/*.njsproj
+aura/*.sln
+aura/*.sw?

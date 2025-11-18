@@ -89,13 +89,15 @@
         const yB = height * 0.87;
         const yOverlay = height * 0.52;
 
+        const maxLength = Math.max(durationA, durationB);
+
         const maxVal = Math.max(...onsetStrengthA, ...onsetStrengthB);
-        drawOnsetStrength(onsetStrengthA, "#3498db", durationA, yA, maxVal);
-        drawOnsetStrength(onsetStrengthB, "#e74c3c", durationB, yB, maxVal);
+        drawOnsetStrength(onsetStrengthA, "#3498db", maxLength, yA, maxVal);
+        drawOnsetStrength(onsetStrengthB, "#e74c3c", maxLength, yB, maxVal);
         drawOverlayStrength(
             onsetStrengthA,
             onsetStrengthB,
-            Math.max(durationA, durationB),
+            maxLength,
             yOverlay,
             maxVal,
         );
