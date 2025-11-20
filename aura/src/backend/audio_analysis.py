@@ -236,8 +236,6 @@ def compute_dtw_own(feat1, feat2, energy_thresh, weights):
     hop_length1 = len(feat1["waveform"]) / len(feat1["mfcc"][0])
     hop_length2 = len(feat2["waveform"]) / len(feat2["mfcc"][0])
 
-    print(len(feat1["waveform"]), feat1['length'], len(feat1["mfcc"][0]))
-
     # Convert to sample indices
     path = [{"x": int(i * hop_length1), "y": int(j * hop_length2)} for i, j in wp]
     return path
@@ -265,7 +263,7 @@ def compute_cos_similarity(feat1, feat2, context_window=10):
     return xsim
 
 
-def downsampling_features(features, target_len=3000, method='mean'):
+def downsampling_features(features, target_len=3000, target_feat_len=600, method='mean'):
     """
     Downsample features in a meaningful way.
     
@@ -306,7 +304,8 @@ def downsampling_features(features, target_len=3000, method='mean'):
         if arr.ndim == 1:
             # 1D signal: reshape to segments of size `factor` and aggregate
             n = len(arr)
-            factor = max(1, n // (waveform_len // wfactor))
+            factor = max(1, int(n / target_feat_len))
+            print(factor)
             trimmed_len = n - (n % factor)
             arr_trimmed = arr[:trimmed_len]
             arr_reshaped = arr_trimmed.reshape(-1, factor)
@@ -326,7 +325,8 @@ def downsampling_features(features, target_len=3000, method='mean'):
             # 2D feature: assume shape (features, time)
             # Downsample along time axis
             time_len = arr.shape[1]
-            factor = max(1, time_len // (waveform_len // wfactor))
+            factor = max(1, int(time_len / target_feat_len))
+            print(factor)
             trimmed_len = time_len - (time_len % factor)
             arr_trimmed = arr[:, :trimmed_len]
             arr_reshaped = arr_trimmed.reshape(arr.shape[0], -1, factor)
@@ -347,7 +347,7 @@ def downsampling_features(features, target_len=3000, method='mean'):
     return downsampled_features
 
 def analyze_audio_files(file_paths):
-    features = [downsampling_features(extract_features(file), 3000, 'mean') for file in file_paths]
+    features = [downsampling_features(extract_features(file), 3000, 600, 'mean') for file in file_paths]
     #features = downsampling_features(features1, factor=2)
 
     dtw_mfcc = compute_dtw_mfcc(features[0], features[1])

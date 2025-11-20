@@ -3,18 +3,17 @@
     import { scaleLinear, interpolateBlues, interpolateRdBu } from "d3";
 
     export let matrix = [[]]; // 2D array of values
-    export let title = ""
+    export let title = "";
     export let maxValue = 1; // for scaling colors
-    export let cellSize = 3; // pixels per cell
+    export let cellSize = 1; // pixels per cell
     export let gap = 0; // gap between cells
 
     let canvas;
     let ctx;
 
     let colorScale = scaleLinear()
-        .domain([-maxValue, 0, maxValue])       // input range
-        .range([0, 0.5, 1])               // normalized to 0–1 for the interpolator
-
+        .domain([-maxValue, 0, maxValue]) // input range
+        .range([0, 0.5, 1]); // normalized to 0–1 for the interpolator
 
     function getColor(value) {
         // Normalize value between 0 and 1
@@ -24,7 +23,6 @@
 
     function drawMatrix() {
         if (!ctx || !matrix.length || !matrix[0].length) return;
-        
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -45,7 +43,7 @@
         ctx = canvas.getContext("2d");
         canvas.width = matrix[0].length * (cellSize + gap) - gap;
         canvas.height = matrix.length * (cellSize + gap) - gap;
-        console.log(matrix.length)
+        console.log(matrix.length);
         drawMatrix();
     });
 </script>

@@ -73,7 +73,6 @@
         differences.forEach((val, i) => {
             const x = (i / differences.length) * width;
             const y = offsetY - (val / maxVal) * (height * 0.17);
-            console.log(i, strengthA[i], strengthB[i], val, x, y);
             if (i === 0) {
                 ctx.moveTo(x, y);
             } else {
