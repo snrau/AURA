@@ -15,18 +15,27 @@
     const height = 150;
     const radius = 4;
 
-    function drawOnsetDots(onsets, y, color) {
+    function drawOnsetDots(onsets, duration, y, color) {
         ctx.fillStyle = color;
         for (const t of onsets) {
-            const x = (t / durationA) * width;
+            const x = (t / duration) * width;
             ctx.beginPath();
             ctx.arc(x, y, radius, 0, Math.PI * 2);
             ctx.fill();
         }
     }
 
-    function drawOnsetStrength(strength, color, duration, offsetY, maxVal) {
+    function drawOnsetStrength(
+        strength,
+        color,
+        duration,
+        maxDuration,
+        offsetY,
+        maxVal,
+    ) {
         if (!strength.length) return;
+
+        console.log(strength.length, duration);
 
         ctx.beginPath();
         ctx.strokeStyle = color;
@@ -35,7 +44,7 @@
         //const maxVal = Math.max(...strength);
         strength.forEach((val, i) => {
             const t = (i / strength.length) * duration;
-            const x = (t / duration) * width;
+            const x = (t / maxDuration) * width;
             const y = offsetY - (val / maxVal) * (height * 0.17); // scale into chart height
             if (i === 0) {
                 ctx.moveTo(x, y);
@@ -47,13 +56,7 @@
         ctx.stroke();
     }
 
-    function drawOverlayStrength(
-        strengthA,
-        strengthB,
-        duration,
-        offsetY,
-        maxVal,
-    ) {
+    function drawOverlayStrength(strengthA, strengthB, offsetY, maxVal) {
         const minLen = Math.min(strengthA.length, strengthB.length);
         if (minLen === 0) return;
 
@@ -62,15 +65,15 @@
         ctx.lineWidth = 1.2;
 
         const differences = Array.from(
-            { length: minLen },
-            (_, i) => strengthA[i] - strengthB[i], //Math.abs(),
+            { length: Math.max(strengthA.length, strengthB.length) },
+            (_, i) => (strengthA[i] ?? 0) - (strengthB[i] ?? 0), //Math.abs(),
         );
         //const maxVal = Math.max(...differences);
 
         differences.forEach((val, i) => {
-            const t = (i / minLen) * duration;
-            const x = (t / duration) * width;
+            const x = (i / differences.length) * width;
             const y = offsetY - (val / maxVal) * (height * 0.17);
+            console.log(i, strengthA[i], strengthB[i], val, x, y);
             if (i === 0) {
                 ctx.moveTo(x, y);
             } else {
@@ -92,18 +95,26 @@
         const maxLength = Math.max(durationA, durationB);
 
         const maxVal = Math.max(...onsetStrengthA, ...onsetStrengthB);
-        drawOnsetStrength(onsetStrengthA, "#3498db", maxLength, yA, maxVal);
-        drawOnsetStrength(onsetStrengthB, "#e74c3c", maxLength, yB, maxVal);
-        drawOverlayStrength(
+        drawOnsetStrength(
             onsetStrengthA,
-            onsetStrengthB,
+            "#3498db",
+            durationA,
             maxLength,
-            yOverlay,
+            yA,
             maxVal,
         );
+        drawOnsetStrength(
+            onsetStrengthB,
+            "#e74c3c",
+            durationB,
+            maxLength,
+            yB,
+            maxVal,
+        );
+        drawOverlayStrength(onsetStrengthA, onsetStrengthB, yOverlay, maxVal);
 
-        drawOnsetDots(onsetsA, yA, "#3498db");
-        drawOnsetDots(onsetsB, yB, "#e74c3c");
+        drawOnsetDots(onsetsA, maxLength, yA, "#3498db");
+        drawOnsetDots(onsetsB, maxLength, yB, "#e74c3c");
     }
 
     $: if (ctx) draw();

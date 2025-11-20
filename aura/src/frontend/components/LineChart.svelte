@@ -13,10 +13,12 @@
     onMount(() => {
         if (chart) chart.destroy();
 
+        length = Math.max(valuesA.length, valuesB.length);
+
         chart = new Chart(canvas, {
             type: "line",
             data: {
-                labels: valuesA.map((_, i) => i), // x-axis: index/frame
+                labels: Array.from(Array(length).keys()), // x-axis: index/frame
                 datasets: [
                     {
                         label: files[0],

@@ -11,7 +11,9 @@ OUTPUT_DIR = "outputs"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 hop_length = 512
-hop_length_dtw = 1 * hop_length
+hop_length_dtw = 10
+
+samplerate = 22050  # default sample rate
 
 def detect_vibrato(f0, sr, hop_length, frame_sec=0.5, vibrato_range=(4, 8)):
     frame_length = int((sr / hop_length) * frame_sec)
@@ -107,7 +109,7 @@ def extract_features(audio_path, frame_duration=0.25):
     }
 
 
-def compute_dtw_mixed(feat1, feat2, hop_length):
+def compute_dtw_mixed(feat1, feat2):
     x = np.array(feat1["chroma_cens"])
     y = np.array(feat2["chroma_cens"])
 
@@ -123,12 +125,17 @@ def compute_dtw_mixed(feat1, feat2, hop_length):
 
     wp = wp[::-1]  # Time warp path
 
+    hop_length1 = len(feat1["waveform"]) / len(feat1["mfcc"][0])
+    hop_length2 = len(feat2["waveform"]) / len(feat2["mfcc"][0])
+
     # Convert frame indices to sample indices by multiplying by hop_length
     path = [{"x": int(i * hop_length), "y": int(j * hop_length)} for i, j in wp]
     return path
 
-def compute_dtw_cens(feat1, feat2, hop_length):
+def compute_dtw_cens(feat1, feat2):
     # We assume MFCCs are used for alignment (13 x N)
+    hop_length1 = len(feat1["waveform"]) / len(feat1["chroma_cens"][0])
+    hop_length2 = len(feat2["waveform"]) / len(feat2["chroma_cens"][0])
     x = np.array(feat1["chroma_cens"])
     y = np.array(feat2["chroma_cens"])
     dist = cdist(x.T, y.T, metric='cosine')
@@ -137,11 +144,14 @@ def compute_dtw_cens(feat1, feat2, hop_length):
     wp = wp[::-1]  # Time warp path
 
     # Convert frame indices to sample indices by multiplying by hop_length
-    path = [{"x": int(i * hop_length), "y": int(j * hop_length)} for i, j in wp]
+    path = [{"x": int(i * hop_length1), "y": int(j * hop_length2)} for i, j in wp]
     return path
 
-def compute_dtw_mfcc(feat1, feat2, hop_length):
+def compute_dtw_mfcc(feat1, feat2):
     # We assume MFCCs are used for alignment (13 x N)
+
+    hop_length1 = len(feat1["waveform"]) / len(feat1["mfcc"][0])
+    hop_length2 = len(feat2["waveform"]) / len(feat2["mfcc"][0])
     x = np.array(feat1["mfcc"])
     y = np.array(feat2["mfcc"])
     dist = cdist(x.T, y.T, metric='euclidean')
@@ -150,12 +160,12 @@ def compute_dtw_mfcc(feat1, feat2, hop_length):
     wp = wp[::-1]  # Time warp path
 
     # Convert frame indices to sample indices by multiplying by hop_length
-    path = [{"x": int(i * hop_length), "y": int(j * hop_length)} for i, j in wp]
+    path = [{"x": int(i * hop_length1), "y": int(j * hop_length2)} for i, j in wp]
     return path
 
 
 
-def compute_dtw_own(feat1, feat2, hop_length, energy_thresh, weights):
+def compute_dtw_own(feat1, feat2, energy_thresh, weights):
 
     # Feature extraction
     def extract_features(feat, weights):
@@ -223,8 +233,13 @@ def compute_dtw_own(feat1, feat2, hop_length, energy_thresh, weights):
 
     wp = wp[::-1]  # Time warp path (reversed)
 
+    hop_length1 = len(feat1["waveform"]) / len(feat1["mfcc"][0])
+    hop_length2 = len(feat2["waveform"]) / len(feat2["mfcc"][0])
+
+    print(len(feat1["waveform"]), feat1['length'], len(feat1["mfcc"][0]))
+
     # Convert to sample indices
-    path = [{"x": int(i * hop_length), "y": int(j * hop_length)} for i, j in wp]
+    path = [{"x": int(i * hop_length1), "y": int(j * hop_length2)} for i, j in wp]
     return path
 
 
@@ -250,15 +265,95 @@ def compute_cos_similarity(feat1, feat2, context_window=10):
     return xsim
 
 
+def downsampling_features(features, target_len=3000, method='mean'):
+    """
+    Downsample features in a meaningful way.
+    
+    Parameters:
+    - features: dict
+        Dictionary of features. Values can be 1D or 2D arrays/lists.
+    - factor: int
+        Downsampling factor. For waveform, target length can also be specified.
+    - method: str
+        How to downsample: 'mean' (average), 'max', or 'min'.
+    
+    Returns:
+    - downsampled_features: dict
+    """
+    downsampled_features = {}
+
+
+    waveform = np.array(features['waveform'])
+    waveform_len = len(waveform)
+    wfactor = max(1, int(waveform_len / target_len))
+
+    trimmed_len = waveform_len - (waveform_len % wfactor)
+    waveform_reshaped = waveform[:trimmed_len].reshape(-1, wfactor)
+    if method == 'mean':
+        downsampled_features['waveform'] = waveform_reshaped.mean(axis=1).tolist()
+    elif method == 'max':
+        downsampled_features['waveform'] = waveform_reshaped.max(axis=1).tolist()
+    else:
+        downsampled_features['waveform'] = waveform_reshaped.min(axis=1).tolist()
+    
+    downsampled_features['length'] = len(downsampled_features['waveform'])
+
+    for key, value in features.items():
+        if key == 'waveform':
+            continue
+        arr = np.array(value)
+
+        if arr.ndim == 1:
+            # 1D signal: reshape to segments of size `factor` and aggregate
+            n = len(arr)
+            factor = max(1, n // (waveform_len // wfactor))
+            trimmed_len = n - (n % factor)
+            arr_trimmed = arr[:trimmed_len]
+            arr_reshaped = arr_trimmed.reshape(-1, factor)
+            
+            if method == 'mean':
+                downsampled = arr_reshaped.mean(axis=1)
+            elif method == 'max':
+                downsampled = arr_reshaped.max(axis=1)
+            elif method == 'min':
+                downsampled = arr_reshaped.min(axis=1)
+            else:
+                raise ValueError("Method must be 'mean', 'max', or 'min'")
+            
+            downsampled_features[key] = downsampled.tolist()
+        
+        elif arr.ndim == 2:
+            # 2D feature: assume shape (features, time)
+            # Downsample along time axis
+            time_len = arr.shape[1]
+            factor = max(1, time_len // (waveform_len // wfactor))
+            trimmed_len = time_len - (time_len % factor)
+            arr_trimmed = arr[:, :trimmed_len]
+            arr_reshaped = arr_trimmed.reshape(arr.shape[0], -1, factor)
+            
+            if method == 'mean':
+                downsampled = arr_reshaped.mean(axis=2)
+            elif method == 'max':
+                downsampled = arr_reshaped.max(axis=2)
+            elif method == 'min':
+                downsampled = arr_reshaped.min(axis=2)
+            
+            downsampled_features[key] = downsampled.tolist()
+        
+        else:
+            # scalar or unknown type, keep as is
+            downsampled_features[key] = value
+    
+    return downsampled_features
+
 def analyze_audio_files(file_paths):
-    print('analyzing')
-    features = [extract_features(file) for file in file_paths]
-    print('features 1')
-    dtw_mfcc = compute_dtw_mfcc(features[0], features[1], hop_length_dtw)
-    dtw_chroma = compute_dtw_cens(features[0], features[1], hop_length_dtw)
-    dtw_mixed = compute_dtw_mixed(features[0], features[1], hop_length_dtw)
-    dtw_own = compute_dtw_own(features[0], features[1], hop_length_dtw, 0.5, (0.2, 0.1, 1.0))  #rms threshhold, (mfcc, chroma, f0)
-    print('dtw')
+    features = [downsampling_features(extract_features(file), 3000, 'mean') for file in file_paths]
+    #features = downsampling_features(features1, factor=2)
+
+    dtw_mfcc = compute_dtw_mfcc(features[0], features[1])
+    dtw_chroma = compute_dtw_cens(features[0], features[1])
+    dtw_mixed = compute_dtw_mixed(features[0], features[1])
+    dtw_own = compute_dtw_own(features[0], features[1], 0.5, (0.2, 0.1, 1.0))  #rms threshhold, (mfcc, chroma, f0)
     sim = compute_cos_similarity(features[0], features[1])
 
     print('feature extracted')
@@ -300,6 +395,10 @@ def analyze_audio_files(file_paths):
             "duration": {
                 "fileA": features[0]['duration'],
                 "fileB": features[1]['duration']
+            },
+            "length": {
+                "fileA": features[0]['length'],
+                "fileB": features[1]['length']
             },
             "chroma_cens": {
                 "fileA": features[0]['chroma_cens'],

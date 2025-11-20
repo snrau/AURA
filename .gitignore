@@ -13,6 +13,9 @@ aura/dist-ssr
 aura/*.local
 aura/back
 
+aura/src/backend/outputs
+aura/src/backend/uploads
+
 # Editor directories and files
 aura/.vscode/*
 aura/!.vscode/extensions.json
