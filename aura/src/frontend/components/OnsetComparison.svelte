@@ -1,12 +1,15 @@
 <script>
     import { onMount } from "svelte";
 
+    import { shiftB } from "../stores";
+
     export let onsetsA = [];
     export let onsetsB = [];
     export let onsetStrengthA = [];
     export let onsetStrengthB = [];
     export let durationA = 1; // Prevent divide by zero
     export let durationB = 1; // Prevent divide by zero
+    export let lengthB = 1;
 
     let canvas;
     let ctx;
@@ -14,6 +17,54 @@
     const width = 1500;
     const height = 150;
     const radius = 4;
+
+    let shiftedOnsetsB = [...onsetsB]; // Local copy of shifted onsets
+    let shiftedOnsetStrengthB = [...onsetStrengthB]; // Local copy of shifted onset strengths
+
+    function calculateTimeShift(shiftB, waveformLength, waveformDuration) {
+        return (shiftB / waveformLength) * waveformDuration; // Time shift in seconds
+    }
+
+    // Subscribe to the shiftB store and update the shifted data
+    $: shiftB.subscribe((shift) => {
+        let shiftTime = calculateTimeShift(shift, lengthB, durationB);
+        shiftedOnsetsB = applyTimeShiftToOnsets(onsetsB, shiftTime);
+        shiftedOnsetStrengthB = applyShiftToStrength(
+            onsetStrengthB,
+            shift,
+            onsetStrengthB.length,
+            lengthB,
+        );
+        draw(); // Redraw the canvas whenever the shift changes
+    });
+
+    // Function to shift onset times
+    function applyTimeShiftToOnsets(onsets, timeShift) {
+        return onsets.map((t) => t + timeShift).filter((t) => t >= 0); // Keep only valid timestamps
+    }
+
+    function applyShiftToStrength(
+        strength,
+        shift,
+        strengthLength,
+        waveformLength,
+    ) {
+        const scaledShift = Math.round(
+            (shift / waveformLength) * strengthLength,
+        );
+
+        const shiftedStrength = [...strength];
+        if (scaledShift > 0) {
+            return Array(scaledShift)
+                .fill(0)
+                .concat(shiftedStrength.slice(0, -scaledShift));
+        } else if (scaledShift < 0) {
+            return shiftedStrength
+                .slice(-scaledShift)
+                .concat(Array(-scaledShift).fill(0));
+        }
+        return shiftedStrength;
+    }
 
     function drawOnsetDots(onsets, duration, y, color) {
         ctx.fillStyle = color;
@@ -103,17 +154,22 @@
             maxVal,
         );
         drawOnsetStrength(
-            onsetStrengthB,
+            shiftedOnsetStrengthB,
             "#e74c3c",
             durationB,
             maxLength,
             yB,
             maxVal,
         );
-        drawOverlayStrength(onsetStrengthA, onsetStrengthB, yOverlay, maxVal);
+        drawOverlayStrength(
+            onsetStrengthA,
+            shiftedOnsetStrengthB,
+            yOverlay,
+            maxVal,
+        );
 
         drawOnsetDots(onsetsA, maxLength, yA, "#3498db");
-        drawOnsetDots(onsetsB, maxLength, yB, "#e74c3c");
+        drawOnsetDots(shiftedOnsetsB, maxLength, yB, "#e74c3c");
     }
 
     $: if (ctx) draw();

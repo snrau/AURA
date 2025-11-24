@@ -1,6 +1,8 @@
 <script>
     import { onMount } from "svelte";
 
+    import { shiftB } from "../stores";
+
     export let analysis = null;
 
     let canvas;
@@ -12,40 +14,51 @@
     const height = 200;
     const margin = 20;
 
-    function drawWaveform(waveform, duration, color, offsetY = 0) {
+    function applyShift(data, shift) {
+        const shiftedData = [...data];
+        if (shift > 0) {
+            // Add zeros at the beginning and remove from the end
+            return Array(shift).fill(0).concat(shiftedData.slice(0, -shift));
+        } else if (shift < 0) {
+            // Remove from the beginning and add zeros at the end
+            return shiftedData.slice(-shift).concat(Array(-shift).fill(0));
+        }
+        return shiftedData;
+    }
+
+    function drawWaveform(waveform, duration, maxDuration, color, offsetY = 0) {
         if (!waveform || waveform.length === 0) return;
         ctx.strokeStyle = color;
         ctx.lineWidth = 1;
         ctx.beginPath();
 
-        console.log(duration, waveform.length);
+        const quotient = duration / maxDuration;
 
-        const step = Math.max(1, Math.floor(duration / width));
+        const scaledWidth = Math.floor(quotient * width);
 
-        for (let x = 0; x < width; x++) {
-            if (waveform.length < x * step) break;
-            const slice = waveform.slice(x * step, (x + 1) * step);
-            if (slice.length === 0) break;
-            const yVal = slice.reduce((a, b) => a + b, 0) / slice.length;
-            const y = offsetY + height / 2 - yVal * height;
-            if (x === 0) ctx.moveTo(x, y);
+        for (let i = 0; i < waveform.length; i++) {
+            const x = Math.floor((i / waveform.length) * scaledWidth); // Map each waveform entry to a pixel position
+            const yVal = waveform[i];
+            const y = offsetY + height / 2 - (yVal * height) / 2;
+
+            if (i === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
         ctx.stroke();
     }
 
-    function drawDTWOverlay(path, len1, len2) {
+    function drawDTWOverlay(path, wlen1, len1, wlen2, len2, maxlen) {
         if (!path || path.length === 0) return;
 
-        const scaledLen1 = len1;
-        const scaledLen2 = len2;
+        const scaledLen1 = len1 / maxlen;
+        const scaledLen2 = len2 / maxlen;
 
-        const xScale1 = width / scaledLen1;
-        const xScale2 = width / scaledLen2;
+        const xScale1 = width * scaledLen1;
+        const xScale2 = width * scaledLen2;
 
         for (const point of path) {
-            const i_sample = point.x;
-            const j_sample = point.y;
+            const i_sample = point.x / wlen1;
+            const j_sample = (point.y + $shiftB) / wlen2;
 
             const x1 = i_sample * xScale1;
             const x2 = j_sample * xScale2;
@@ -59,14 +72,14 @@
             const alpha = Math.max(0.2, 1 - Math.min(1, deviation / maxDev));
             */
 
-            const hopSize = 512; // Assuming each hop corresponds to 512 samples in the MFCC analysis
+            const hopSize = 28; // Assuming each hop corresponds to 512 samples in the MFCC analysis
 
             const hopDeviation = Math.abs(
-                i_sample / hopSize - j_sample / hopSize,
+                point.x / hopSize - (point.y + $shiftB) / hopSize,
             ); // measured in number of MFCC frames
 
             // Alpha increases by 0.2 per hop (cap at 1.0)
-            const alpha = Math.min(1.0, 0.1 + 0.2 * hopDeviation);
+            const alpha = Math.min(1.0, 0.05 + 0.1 * hopDeviation);
 
             ctx.beginPath();
             ctx.moveTo(x1, y1);
@@ -77,11 +90,17 @@
         }
     }
 
-    function drawOnsets(onsets, duration, offsetY = 0, color = "#888") {
+    function drawOnsets(
+        onsets,
+        duration,
+        maxDuration,
+        offsetY = 0,
+        color = "#888",
+    ) {
         if (!onsets || onsets.length === 0) return;
 
         for (const t of onsets) {
-            const x = (t / duration) * width; // normalize by duration of the audio
+            const x = (t / maxDuration) * width; // normalize by duration of the audio
 
             /*ctx.beginPath();
             ctx.moveTo(x, offsetY);
@@ -103,7 +122,8 @@
         ctx.clearRect(0, 0, width, height * 2 + margin * 2);
 
         let waveformA = analysis.features.waveform.fileA;
-        let waveformB = analysis.features.waveform.fileB;
+        //let waveformB = analysis.features.waveform.fileB;
+        let waveformB = applyShift(analysis.features.waveform.fileB, $shiftB);
 
         let dtw = analysis.dtw;
         let dtwPath = dtw[selectedDTW];
@@ -117,33 +137,46 @@
         waveformA = waveformA.map((v) => v / globalMax);
         waveformB = waveformB.map((v) => v / globalMax);
 
-        const maxLength = Math.max(waveformA.length, waveformB.length);
-
-        drawWaveform(waveformA, maxLength, "#3498db", margin);
-        drawWaveform(waveformB, maxLength, "#e74c3c", height + margin * 2);
-
-        const durationA = waveformA.length / 22050; // or: (mfccA.length * hopSize) / sampleRate;
-        const durationB = waveformB.length / 22050;
+        const durationA = analysis.features.duration.fileA; // or: (mfccA.length * hopSize) / sampleRate;
+        const durationB = analysis.features.duration.fileB;
 
         const maxDuration = Math.max(durationA, durationB);
 
-        console.log(durationA, durationB, maxDuration);
+        drawWaveform(waveformA, durationA, maxDuration, "#3498db", margin);
+        drawWaveform(
+            waveformB,
+            durationB,
+            maxDuration,
+            "#e74c3c",
+            height + margin * 2,
+        );
 
+        /*
         // Onset overlays
         drawOnsets(
             analysis.features.onsets.fileA,
+            durationA,
             maxDuration,
             height + margin,
             "#2980b9",
         );
         drawOnsets(
             analysis.features.onsets.fileB,
+            durationB,
             maxDuration,
             height + margin * 2,
             "#c0392b",
         );
+        */
 
-        drawDTWOverlay(dtwPath, waveformA.length, waveformB.length);
+        drawDTWOverlay(
+            dtwPath,
+            waveformA.length,
+            durationA,
+            waveformB.length,
+            durationB,
+            maxDuration,
+        );
     }
 
     /*
@@ -184,6 +217,22 @@
 
     <canvas bind:this={canvas} {width} height={height * 2 + margin * 2}
     ></canvas>
+    <label for="shiftB">Shift File B:</label>
+    <input
+        id="shiftB"
+        type="range"
+        min="-200"
+        max="200"
+        bind:value={$shiftB}
+        on:input={draw}
+    />
+    <div></div>
+    <span
+        on:click={() => {
+            shiftB.set(0);
+            draw();
+        }}>{$shiftB} samples</span
+    >
 </div>
 
 <style>

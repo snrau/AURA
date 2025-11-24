@@ -78,8 +78,9 @@
         try {
             const res = await axios.get(`${BASE_URL}/results/${selectedFile}`);
             console.log("Loaded result file:", res.data);
-            loadedResult = res.data;
+            //loadedResult = res.data;
             uploadResult = null; // Clear upload result view if any
+            uploadResult = res.data;
         } catch (err) {
             console.error("Failed to load result file:", err);
             errorMsg = "Failed to load result file";
@@ -129,91 +130,48 @@
                 onsetStrengthB={uploadResult.features.onsets_strength.fileB}
                 durationA={uploadResult.features.duration.fileA}
                 durationB={uploadResult.features.duration.fileB}
+                lengthB={uploadResult.features.length.fileB}
             />
             <LineChart
                 title="F0"
                 valuesA={uploadResult.features.f0.fileA}
                 valuesB={uploadResult.features.f0.fileB}
                 files={uploadResult.files}
+                lengthB={uploadResult.features.length.fileB}
             />
             <LineChart
                 title="RMS"
                 valuesA={uploadResult.features.rms.fileA}
                 valuesB={uploadResult.features.rms.fileB}
                 files={uploadResult.files}
+                lengthB={uploadResult.features.length.fileB}
             />
             <LineChart
                 title="Spectral Centroid"
                 valuesA={uploadResult.features.spectral_centroid.fileA}
                 valuesB={uploadResult.features.spectral_centroid.fileB}
                 files={uploadResult.files}
+                lengthB={uploadResult.features.length.fileB}
             />
             <LineChart
                 title="Vibrato"
                 valuesA={uploadResult.features.vibrato.fileA}
                 valuesB={uploadResult.features.vibrato.fileB}
                 files={uploadResult.files}
+                lengthB={uploadResult.features.length.fileB}
             />
             <LineChart
                 title="F0 Framewise"
                 valuesA={uploadResult.features.f0_framewise.fileA}
                 valuesB={uploadResult.features.f0_framewise.fileB}
                 files={uploadResult.files}
+                lengthB={uploadResult.features.length.fileB}
             />
 
             <MatrixChart
                 title="Cross Similarity"
                 matrix={uploadResult.similarity}
-                files={uploadResult.files}
-            />
-        {/if}
-        {#if loadedResult}
-            <WaveformVisualizer analysis={loadedResult} />
-            <!--<FeatureCharts analysis={loadedResult.features} />
-            <MFCCHeatmap analysis={loadedResult.features} />-->
-            <OnsetComparison
-                onsetsA={loadedResult.features.onsets.fileA}
-                onsetsB={loadedResult.features.onsets.fileB}
-                onsetStrengthA={loadedResult.features.onsets_strength.fileA}
-                onsetStrengthB={loadedResult.features.onsets_strength.fileB}
-                durationA={loadedResult.features.duration.fileA}
-                durationB={loadedResult.features.duration.fileB}
-            />
-            <LineChart
-                title="F0"
-                valuesA={loadedResult.features.f0.fileA}
-                valuesB={loadedResult.features.f0.fileB}
-                files={loadedResult.files}
-            />
-            <LineChart
-                title="RMS"
-                valuesA={loadedResult.features.rms.fileA}
-                valuesB={loadedResult.features.rms.fileB}
-                files={loadedResult.files}
-            />
-            <LineChart
-                title="Spectral Centroid"
-                valuesA={loadedResult.features.spectral_centroid.fileA}
-                valuesB={loadedResult.features.spectral_centroid.fileB}
-                files={loadedResult.files}
-            />
-            <LineChart
-                title="Vibrato"
-                valuesA={loadedResult.features.vibrato.fileA}
-                valuesB={loadedResult.features.vibrato.fileB}
-                files={loadedResult.files}
-            />
-            <LineChart
-                title="F0 Framewise"
-                valuesA={loadedResult.features.f0_framewise.fileA}
-                valuesB={loadedResult.features.f0_framewise.fileB}
-                files={loadedResult.files}
-            />
-
-            <MatrixChart
-                title="Cross Similarity"
-                similarity={loadedResult.similarity}
-                files={loadedResult.files}
+                lengthB={uploadResult.features.length.fileB}
             />
         {/if}
     </section>
