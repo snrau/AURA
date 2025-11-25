@@ -5,6 +5,7 @@
     import LineChart from "./components/LineChart.svelte";
     import OnsetComparison from "./components/OnsetComparison.svelte";
     import MatrixChart from "./components/MatrixChart.svelte";
+    import { shiftB } from "./stores";
 
     // Backend base URL
     const BASE_URL = "http://localhost:8000";
@@ -121,6 +122,20 @@
     <section style="margin-top: 2rem;">
         {#if uploadResult}
             <WaveformVisualizer analysis={uploadResult} />
+            <label for="shiftB">Shift File B:</label>
+            <input
+                id="shiftB"
+                type="range"
+                min="-200"
+                max="200"
+                bind:value={$shiftB}
+            />
+            <div></div>
+            <span
+                on:click={() => {
+                    shiftB.set(0);
+                }}>{$shiftB} samples</span
+            >
 
             <!--<FeatureCharts analysis={loadedResult.features} />
             <MFCCHeatmap analysis={loadedResult.features} />-->

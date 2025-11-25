@@ -69,7 +69,7 @@
         for (let row = 0; row < shiftedMatrix.length; row++) {
             for (let col = 0; col < shiftedMatrix[row].length; col++) {
                 const value = shiftedMatrix[row][col];
-                ctx.fillStyle = getColor(value);
+                ctx.fillStyle = row === col ? "grey" : getColor(value);
                 const x = col * (cellSize + gap);
                 const y = (shiftedMatrix.length - 1 - row) * (cellSize + gap);
                 ctx.fillRect(x, y, cellSize, cellSize);
@@ -122,8 +122,8 @@
 
 <div>
     <h3>{title} {matrix?.length} x {matrix[0].length}</h3>
-    <button on:click={zoomIn}>Zoom In</button>
-    <button on:click={zoomOut}>Zoom Out</button>
+    <button on:click={zoomIn}>Bigger</button>
+    <button on:click={zoomOut}>Smaller</button>
     <canvas bind:this={canvas}></canvas>
 </div>
 

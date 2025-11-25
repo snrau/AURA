@@ -185,6 +185,10 @@
     }
     */
 
+    $: shiftB.subscribe((shift) => {
+        draw(); // Redraw the canvas whenever the shift changes
+    });
+
     $: selectedDTW,
         () => {
             if (ctx && analysis) {
@@ -217,22 +221,6 @@
 
     <canvas bind:this={canvas} {width} height={height * 2 + margin * 2}
     ></canvas>
-    <label for="shiftB">Shift File B:</label>
-    <input
-        id="shiftB"
-        type="range"
-        min="-200"
-        max="200"
-        bind:value={$shiftB}
-        on:input={draw}
-    />
-    <div></div>
-    <span
-        on:click={() => {
-            shiftB.set(0);
-            draw();
-        }}>{$shiftB} samples</span
-    >
 </div>
 
 <style>
