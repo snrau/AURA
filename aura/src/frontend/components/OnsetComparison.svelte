@@ -86,8 +86,6 @@
     ) {
         if (!strength.length) return;
 
-        console.log(strength.length, duration);
-
         ctx.beginPath();
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.5;

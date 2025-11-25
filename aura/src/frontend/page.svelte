@@ -121,6 +121,7 @@
     <section style="margin-top: 2rem;">
         {#if uploadResult}
             <WaveformVisualizer analysis={uploadResult} />
+
             <!--<FeatureCharts analysis={loadedResult.features} />
             <MFCCHeatmap analysis={loadedResult.features} />-->
             <OnsetComparison
@@ -167,7 +168,6 @@
                 files={uploadResult.files}
                 lengthB={uploadResult.features.length.fileB}
             />
-
             <MatrixChart
                 title="Cross Similarity"
                 matrix={uploadResult.similarity}
