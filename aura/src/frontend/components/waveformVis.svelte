@@ -1,18 +1,19 @@
 <script>
     import { onMount } from "svelte";
 
-    import { shiftB } from "../stores";
+    import { shiftB, dtwmethod, dtwOption } from "../stores";
 
     export let analysis = null;
 
     let canvas;
     let ctx;
     let selectedDTW = "dtw_own";
-    let dtwOption = ["dtw_mfcc", "dtw_own", "dtw_chroma", "dtw_mixed"];
 
-    const width = 1500;
-    const height = 200;
+    let width = 0; //1500;
+    let height = 0; //200;
     const margin = 20;
+
+    let container;
 
     function applyShift(data, shift) {
         const shiftedData = [...data];
@@ -126,7 +127,7 @@
         let waveformB = applyShift(analysis.features.waveform.fileB, $shiftB);
 
         let dtw = analysis.dtw;
-        let dtwPath = dtw[selectedDTW];
+        let dtwPath = dtw[$dtwmethod];
 
         // 🔧 Compute global max for normalization
         const maxA = Math.max(...waveformA.map(Math.abs));
@@ -189,41 +190,55 @@
         draw(); // Redraw the canvas whenever the shift changes
     });
 
-    $: selectedDTW,
-        () => {
-            if (ctx && analysis) {
-                draw();
-            }
-        };
+    $: dtwmethod.subscribe(() => {
+        if (ctx && analysis) {
+            draw();
+        }
+    });
 
     onMount(() => {
         ctx = canvas.getContext("2d");
+
+        // Use ResizeObserver to dynamically update width and height
+        const resizeObserver = new ResizeObserver(() => {
+            if (container) {
+                width = Math.min(container.offsetWidth, window.innerWidth);
+                height = container.offsetHeight / 2; // Adjust height as needed
+                canvas.width = width;
+                canvas.height = height * 2 + margin * 2;
+                draw();
+            }
+        });
+
+        resizeObserver.observe(container);
+
         if (analysis) {
             draw();
         }
     });
 </script>
 
-<div>
+<div bind:this={container} class="canvas-container">
     <h3>Waveform Comparison</h3>
-    <h5>
+    <label>
         Blue = {analysis ? analysis?.files[0] : "fileA"}, Red = {analysis
             ? analysis?.files[1]
             : "fileB"}
-    </h5>
+    </label>
 
-    <label for="dtwSelect">DTW Method:</label>
-    <select id="dtwSelect" bind:value={selectedDTW} on:change={draw}>
-        {#each dtwOption as method}
-            <option value={method}>{method}</option>
-        {/each}
-    </select>
-
-    <canvas bind:this={canvas} {width} height={height * 2 + margin * 2}
-    ></canvas>
+    <canvas bind:this={canvas}></canvas>
 </div>
 
 <style>
+    .canvas-container {
+        width: 100%; /* Take full width of the parent grid item */
+        height: 100%; /* Take full height of the parent grid item */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
     canvas {
         border: 1px solid #ccc;
         background: #f8f8f8;

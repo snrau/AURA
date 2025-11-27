@@ -14,9 +14,11 @@
     let canvas;
     let ctx;
 
-    const width = 1500;
-    const height = 150;
+    let width = 0; //1500;
+    let height = 0; //150;
     const radius = 4;
+
+    let container;
 
     let shiftedOnsetsB = [...onsetsB]; // Local copy of shifted onsets
     let shiftedOnsetStrengthB = [...onsetStrengthB]; // Local copy of shifted onset strengths
@@ -174,16 +176,39 @@
 
     onMount(() => {
         ctx = canvas.getContext("2d");
+
+        // Use ResizeObserver to dynamically update width and height
+        const resizeObserver = new ResizeObserver(() => {
+            if (container) {
+                width = Math.min(container.offsetWidth, window.innerWidth);
+                height = container.offsetHeight;
+                canvas.width = width;
+                canvas.height = height;
+                draw();
+            }
+        });
+
+        resizeObserver.observe(container);
+
         draw();
     });
 </script>
 
-<div>
+<div bind:this={container} class="canvas-container">
     <h3>Onset Comparison</h3>
     <canvas bind:this={canvas} {width} {height}></canvas>
 </div>
 
 <style>
+    .canvas-container {
+        width: 100%; /* Take full width of the parent grid item */
+        height: 100%; /* Take full height of the parent grid item */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
     canvas {
         border: 1px solid #ccc;
         background: #fff;
