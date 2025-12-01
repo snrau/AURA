@@ -6,6 +6,7 @@
     import OnsetComparison from "./components/OnsetComparison.svelte";
     import MatrixChart from "./components/MatrixChart.svelte";
     import { dtwmethod, dtwOption, shiftB } from "./stores";
+    import MatrixGlyph from "./components/MatrixGlyph.svelte";
 
     // Backend base URL
     const BASE_URL = "http://localhost:8000";
@@ -25,6 +26,7 @@
     let showWaveform = true;
     let showOnsetComparison = true;
     let showF0 = true;
+    let showDiff = true;
     let showRMS = true;
     let showSpectralCentroid = true;
     let showVibrato = true;
@@ -34,6 +36,7 @@
     $: visibleVisualizations =
         (showWaveform ? 1 : 0) +
         (showF0 ? 1 : 0) +
+        (showDiff ? 1 : 0) +
         (showRMS ? 1 : 0) +
         (showSpectralCentroid ? 1 : 0) +
         (showVibrato ? 1 : 0) +
@@ -151,6 +154,9 @@
                 ? "Hide Onset Comparison"
                 : "Show Onset Comparison"}
         </button>
+        <button on:click={() => (showDiff = !showDiff)}>
+            {showDiff ? "Hide Diff" : "Show Diff"}
+        </button>
         <button on:click={() => (showF0 = !showF0)}>
             {showF0 ? "Hide F0" : "Show F0"}
         </button>
@@ -209,6 +215,21 @@
                         durationA={uploadResult.features.duration.fileA}
                         durationB={uploadResult.features.duration.fileB}
                         lengthB={uploadResult.features.length.fileB}
+                    />
+                </div>
+            {/if}
+
+            {#if showDiff}
+                <div
+                    class="grid-item line-chart"
+                    style="grid-column: {visibleVisualizations <= 4
+                        ? 'span 2'
+                        : 'span 1'}"
+                >
+                    <MatrixGlyph
+                        title="F0"
+                        analysis={uploadResult}
+
                     />
                 </div>
             {/if}
