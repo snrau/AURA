@@ -347,46 +347,82 @@ def downsampling_features(features, target_len=3000, target_feat_len=600, method
     return downsampled_features
 
 def analyze_audio_files(file_paths):
-    file_ids = [chr(ord('A') + i) for i in range(len(file_paths))]
 
     features = [downsampling_features(extract_features(file), 3000, 600, 'mean') for file in file_paths]
     #features = downsampling_features(features1, factor=2)
 
-    files_data = [
-            {
-                "id": file_ids[i],
-                "name": os.path.splitext(os.path.basename(file_paths[i]))[0],
-                "features": features[i]
-            }
-            for i in range(len(file_paths))
-        ]
-    
-    # Build comparisons dictionary
-    comparisons = {}
-    for i in range(len(file_ids)):
-        for j in range(i+1, len(file_ids)):
-            idA, idB = file_ids[i], file_ids[j]
-            featA, featB = features[i], features[j]
-            pair_key = f"{idA}{idB}"
+    dtw_mfcc = compute_dtw_mfcc(features[0], features[1])
+    dtw_chroma = compute_dtw_cens(features[0], features[1])
+    dtw_mixed = compute_dtw_mixed(features[0], features[1])
+    dtw_own = compute_dtw_own(features[0], features[1], 0.5, (0.2, 0.1, 1.0))  #rms threshhold, (mfcc, chroma, f0)
+    sim = compute_cos_similarity(features[0], features[1])
 
-            comparisons[pair_key] = {
-                "dtw": {
-                    "dtw_mfcc": compute_dtw_mfcc(featA, featB),
-                    "dtw_own": compute_dtw_own(featA, featB, 0.5, (0.2, 0.1, 1.0)),
-                    "dtw_chroma": compute_dtw_cens(featA, featB),
-                    "dtw_mixed": compute_dtw_mixed(featA, featB)
-                },
-                "similarity": compute_cos_similarity(featA, featB),
-            }
+    print('feature extracted')
+    result = {
+        "files": [os.path.basename(p) for p in file_paths],
+        "features": {
+            "waveform": {
+                "fileA": features[0]['waveform'],
+                "fileB": features[1]['waveform']
+            },
+            "rms": {
+                "fileA": features[0]['rms'],
+                "fileB": features[1]['rms']
+            },
+            "f0": {
+                "fileA": features[0]['f0'],
+                "fileB": features[1]['f0']
+            },
+            "f0_framewise": {
+                "fileA": features[0]['f0_framewise'],
+                "fileB": features[1]['f0_framewise']
+            },
+            "vibrato": {
+                "fileA": features[0]['vibrato'],
+                "fileB": features[1]['vibrato']
+            },
+            "spectral_centroid": {
+                "fileA": features[0]['spectral_centroid'],
+                "fileB": features[1]['spectral_centroid']
+            },
+            "onsets": {
+                "fileA": features[0]['onsets'],
+                "fileB": features[1]['onsets']
+            },
+            "onsets_strength": {
+                "fileA": features[0]['onsets_strength'],
+                "fileB": features[1]['onsets_strength']
+            },
+            "duration": {
+                "fileA": features[0]['duration'],
+                "fileB": features[1]['duration']
+            },
+            "length": {
+                "fileA": features[0]['length'],
+                "fileB": features[1]['length']
+            },
+            "chroma_cens": {
+                "fileA": features[0]['chroma_cens'],
+                "fileB": features[1]['chroma_cens']
+            },
+        },
+        "dtw": {
+            "dtw_mfcc": dtw_mfcc,
+            "dtw_own": dtw_own,
+            "dtw_chroma": dtw_chroma,
+            "dtw_mixed": dtw_mixed
+        },
+        "similarity": sim
+    }
 
 
-    base_name = os.path.splitext(os.path.basename(file_paths[0]))[0]
-    output_filename = f"analysis_multi_{base_name}_{len(file_paths)}.json"
+    base_names = [os.path.splitext(os.path.basename(p))[0] for p in file_paths]
+    output_filename = f"audio_analysis_{base_names[0]}_vs_{base_names[1]}.json"
     #output_filename = f"audio_analysis.json"
     output_path = os.path.join(OUTPUT_DIR, output_filename)
     with open(output_path, "w") as f:
-        json.dump({"files": files_data,
-            "comparisons": comparisons}, f, indent=2)
+        json.dump(result, f, indent=2)
 
     print(f"[INFO] Analysis saved to {output_path}")
-    return {"files": files_data, "comparisons": comparisons}
+
+    return result

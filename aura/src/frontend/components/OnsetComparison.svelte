@@ -1,8 +1,8 @@
 <script>
     import { onMount } from "svelte";
 
-    import { shiftB } from "../stores";
-
+    export let fileAname = ""
+    export let fileBname = ""
     export let onsetsA = [];
     export let onsetsB = [];
     export let onsetStrengthA = [];
@@ -10,6 +10,7 @@
     export let durationA = 1; // Prevent divide by zero
     export let durationB = 1; // Prevent divide by zero
     export let lengthB = 1;
+    export let shift
 
     let canvas;
     let ctx;
@@ -28,7 +29,14 @@
     }
 
     // Subscribe to the shiftB store and update the shifted data
-    $: shiftB.subscribe((shift) => {
+    $: if(shift !== undefined) forceShift(shift)
+
+    $: if (ctx && (fileAname || fileBname)) {
+        forceShift(shift ?? 0);
+    }
+
+    function forceShift(shift){
+        console.log("forceShift", shift)
         let shiftTime = calculateTimeShift(shift, lengthB, durationB);
         shiftedOnsetsB = applyTimeShiftToOnsets(onsetsB, shiftTime);
         shiftedOnsetStrengthB = applyShiftToStrength(
@@ -37,8 +45,8 @@
             onsetStrengthB.length,
             lengthB,
         );
-        draw(); // Redraw the canvas whenever the shift changes
-    });
+        draw();
+    }
 
     // Function to shift onset times
     function applyTimeShiftToOnsets(onsets, timeShift) {
@@ -172,8 +180,6 @@
         drawOnsetDots(shiftedOnsetsB, maxLength, yB, "#e74c3c");
     }
 
-    $: if (ctx) draw();
-
     onMount(() => {
         ctx = canvas.getContext("2d");
 
@@ -184,13 +190,12 @@
                 height = container.offsetHeight;
                 canvas.width = width;
                 canvas.height = height;
-                draw();
+                forceShift(0)
             }
         });
 
         resizeObserver.observe(container);
-
-        draw();
+        forceShift(0)
     });
 </script>
 

@@ -6,13 +6,14 @@
         interpolateRdBu,
         interpolateViridis,
     } from "d3";
-    import { shiftB } from "../stores";
 
-    export let analysis;
+    export let fileA;
+    export let fileB;
     export let title = "Comparison Glyph";
     export let cellSize = 4;
     export let gap = 1;
     export let timeCells = 100; // width of the glyph
+    export let shift
 
     let canvas;
     let ctx;
@@ -22,7 +23,7 @@
         "f0",
         "rms",
         "spectral_centroid",
-        "vibrato",
+        "onsets_strength",
         "onsets",
         "chroma_cens",
     ];
@@ -34,8 +35,6 @@
 
 
     let debounceTimeout; // Timeout for debouncing
-
-    let waveformA = analysis.features.waveform.fileA;
 
     // Utility: compute the average of items in an array
     function avg(arr) {
@@ -88,6 +87,20 @@
         return result;
     }
 
+    function scaleOnsetsToTimeline(onsets, durationSeconds, cellCount) {
+    const cellSize = durationSeconds / cellCount;
+    const result = Array(cellCount).fill(0);
+
+    for (let t of onsets) {
+        const cellIndex = Math.floor(t / cellSize);
+        if (cellIndex >= 0 && cellIndex < cellCount) {
+            result[cellIndex] = 1; // mark onset
+        }
+    }
+
+    return result;
+}
+
     function shiftArrayBySamples(array, shift, lengthB) {
     if (!array || !array.length) return [];
 
@@ -135,6 +148,18 @@ function shift2DMatrixBySamples(matrix, shift, lengthB) {
     }
 
     return newMatrix;
+}
+
+function shiftOnsets(onsets, shiftSamples, totalSamples, durationSeconds) {
+    if (!onsets) return [];
+
+    // Convert sample shift → seconds
+    const shiftSeconds = (shiftSamples / totalSamples) * durationSeconds;
+
+    // Apply shift and clamp to [0, duration]
+    return onsets
+        .map(t => t + shiftSeconds)
+        .filter(t => t >= 0 && t <= durationSeconds);
 }
 
 
@@ -185,18 +210,31 @@ function shift2DMatrixBySamples(matrix, shift, lengthB) {
      function computeDifferenceMatrix(shift) {
         differenceMatrix = [];
 
-        const durationA = analysis.features.duration.fileA;
-        const durationB = analysis.features.duration.fileB;
-        const lengthB = analysis.features.waveform.fileB.length;
+        const durationA = fileA.duration;
+        const durationB = fileB.duration;
+        const lengthB = fileB.waveform.length;
 
         for (let feature of featureList) {
-            const A_raw = analysis.features[feature].fileA;
-            let B_raw = analysis.features[feature].fileB;
+            const A_raw = fileA[feature];
+            let B_raw = fileB[feature];
 
             if (!A_raw || !B_raw) continue;
 
             let diffRow 
-            if(feature === "chroma_cens" || feature === "mfcc"){
+            if (feature === "onsets") {
+
+                // 1. Shift timestamps
+                const B_shifted = shiftOnsets(B_raw, shift, lengthB, durationB);
+
+                // 2. Scale onsets to 100 cells
+                const A_scaled = scaleOnsetsToTimeline(A_raw, durationA, timeCells);
+                const B_scaled = scaleOnsetsToTimeline(B_shifted, durationB, timeCells);
+
+                // 3. Compare per cell
+                diffRow = A_scaled.map((a, i) => Math.abs(a - B_scaled[i]));
+
+                }
+            else if(feature === "chroma_cens" || feature === "mfcc"){
                 B_raw = shift2DMatrixBySamples(B_raw, shift, lengthB);
                 diffRow = compare2DMatrices(A_raw, B_raw, durationA, durationB, timeCells);
             }else{
@@ -236,8 +274,6 @@ function shift2DMatrixBySamples(matrix, shift, lengthB) {
         const rows = shiftedMatrix.length;
         const cols = shiftedMatrix[0].length;
 
-        console.log(shiftedMatrix)
-
         canvas.width = cols * (cellSize + gap) - gap;
         canvas.height = rows * (cellSize + gap) - gap;
 
@@ -256,24 +292,24 @@ function shift2DMatrixBySamples(matrix, shift, lengthB) {
     }
 
 
-    $: if (analysis) {
+    $: if (fileA && fileB) {
         // build dynamic feature list
         featureList = possibleFeatures.filter(f =>
-            analysis?.features?.[f] &&
-            analysis?.features?.[f]
+            fileA[f] &&
+            fileB[f]
         );
         
-        computeDifferenceMatrix($shiftB);
+        computeDifferenceMatrix(shift);
         draw();
     }
 
-    $: shiftB.subscribe(shift => {
+    $: shift, () => {
         clearTimeout(debounceTimeout);
         debounceTimeout = setTimeout(() => {
-            computeDifferenceMatrix($shiftB);
+            computeDifferenceMatrix(shift);
             draw();
         }, 300);
-    });
+    };
 
     onMount(() => {
         ctx = canvas.getContext("2d");

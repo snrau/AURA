@@ -3,7 +3,10 @@
 
     import { shiftB, dtwmethod, dtwOption } from "../stores";
 
-    export let analysis = null;
+    export let fileA
+    export let fileB
+    export let dtw
+    export let shift
 
     let canvas;
     let ctx;
@@ -59,7 +62,7 @@
 
         for (const point of path) {
             const i_sample = point.x / wlen1;
-            const j_sample = (point.y + $shiftB) / wlen2;
+            const j_sample = (point.y + shift) / wlen2;
 
             const x1 = i_sample * xScale1;
             const x2 = j_sample * xScale2;
@@ -76,7 +79,7 @@
             const hopSize = 28; // Assuming each hop corresponds to 512 samples in the MFCC analysis
 
             const hopDeviation = Math.abs(
-                point.x / hopSize - (point.y + $shiftB) / hopSize,
+                point.x / hopSize - (point.y + shift) / hopSize,
             ); // measured in number of MFCC frames
 
             // Alpha increases by 0.2 per hop (cap at 1.0)
@@ -119,14 +122,13 @@
     }
 
     function draw() {
-        if (!ctx || !analysis || !analysis.features) return;
+        if (!ctx || !fileA || !fileB) return;
         ctx.clearRect(0, 0, width, height * 2 + margin * 2);
 
-        let waveformA = analysis.features.waveform.fileA;
+        let waveformA = fileA.waveform;
         //let waveformB = analysis.features.waveform.fileB;
-        let waveformB = applyShift(analysis.features.waveform.fileB, $shiftB);
+        let waveformB = applyShift(fileB.waveform, shift);
 
-        let dtw = analysis.dtw;
         let dtwPath = dtw[$dtwmethod];
 
         // 🔧 Compute global max for normalization
@@ -138,8 +140,8 @@
         waveformA = waveformA.map((v) => v / globalMax);
         waveformB = waveformB.map((v) => v / globalMax);
 
-        const durationA = analysis.features.duration.fileA; // or: (mfccA.length * hopSize) / sampleRate;
-        const durationB = analysis.features.duration.fileB;
+        const durationA = fileA.duration; // or: (mfccA.length * hopSize) / sampleRate;
+        const durationB = fileB.duration;
 
         const maxDuration = Math.max(durationA, durationB);
 
@@ -186,12 +188,11 @@
     }
     */
 
-    $: shiftB.subscribe((shift) => {
-        draw(); // Redraw the canvas whenever the shift changes
-    });
+    $: if(shift !== undefined) draw(); // Redraw the canvas whenever the shift changes
+
 
     $: dtwmethod.subscribe(() => {
-        if (ctx && analysis) {
+        if (ctx && dtw) {
             draw();
         }
     });
@@ -212,7 +213,7 @@
 
         resizeObserver.observe(container);
 
-        if (analysis) {
+        if (fileA && fileB && dtw) {
             draw();
         }
     });
@@ -221,8 +222,8 @@
 <div bind:this={container} class="canvas-container">
     <h3>Waveform Comparison</h3>
     <label>
-        Blue = {analysis ? analysis?.files[0] : "fileA"}, Red = {analysis
-            ? analysis?.files[1]
+        Blue = {fileA? fileA.name : "fileA"}, Red = {fileB
+            ? fileB.name
             : "fileB"}
     </label>
 

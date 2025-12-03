@@ -5,7 +5,7 @@
     import LineChart from "./components/LineChart.svelte";
     import OnsetComparison from "./components/OnsetComparison.svelte";
     import MatrixChart from "./components/MatrixChart.svelte";
-    import { dtwmethod, dtwOption, shiftB } from "./stores";
+    import { dtwmethod, dtwOption, shiftB, shiftStore  } from "./stores";
     import MatrixGlyph from "./components/MatrixGlyph.svelte";
 
     // Backend base URL
@@ -42,9 +42,44 @@
         (showVibrato ? 1 : 0) +
         (showMatrix ? 1 : 0);
 
+    let selectedPairKey = "";
+    let availablePairs = [];
+
+    // Build pair keys dynamically
+    $: if (uploadResult?.comparisons) {
+        availablePairs = Object.keys(uploadResult.comparisons).sort();
+        if (!selectedPairKey && availablePairs.length > 0) {
+            selectedPairKey = availablePairs[0];
+        }
+    }
+
+    // Convenience getters
+    $: [file1Id, file2Id] = selectedPairKey ? selectedPairKey.split("") : ["", ""];
+    $: selectedPairData = uploadResult?.comparisons?.[selectedPairKey] ?? null;
+    $: file1 = uploadResult?.files?.find(f => f.id === file1Id);
+    $: file2 = uploadResult?.files?.find(f => f.id === file2Id);
+
     onMount(async () => {
         await loadResultsList();
     });
+
+    let previousPairKey = null;
+    let currentShift = 0;
+
+    $: if (selectedPairKey && selectedPairKey !== previousPairKey) {
+        previousPairKey = selectedPairKey;
+        // load stored shift for new pair
+        currentShift = $shiftStore[selectedPairKey] ?? 0;
+    }
+
+    function updateShift(val) {
+        shiftStore.setShift(selectedPairKey, +val);
+    }
+
+    function resetShift() {
+        currentShift = 0
+        shiftStore.resetShift(selectedPairKey);
+    }
 
     async function loadResultsList() {
         try {
@@ -57,12 +92,12 @@
 
     async function uploadFiles() {
         errorMsg = "";
-        if (files.length === 0) {
-            errorMsg = "Please select one or two audio files.";
+        if (files.length < 2) {
+            errorMsg = "Please select two or more audio files.";
             return;
         }
-        if (files.length !== 2) {
-            errorMsg = "Please upload exactly two audio files for comparison.";
+        if (files.length > 10) {
+            errorMsg = "Please upload up to 10 audio files for comparison.";
             return;
         }
 
@@ -174,9 +209,44 @@
         <button on:click={() => (showMatrix = !showMatrix)}>
             {showMatrix ? "Hide Matrix" : "Show Matrix"}
         </button>
+         <!-- Pair selector integrated in toggle bar -->
+        <div class="pair-select">
+            <label for="pairSelect">Compare:</label>
+            <select id="pairSelect" bind:value={selectedPairKey}>
+                {#each availablePairs as pairKey}
+                    {#if uploadResult.comparisons[pairKey]}
+                        <option value={pairKey}>
+                            {pairKey} ({uploadResult.files.find(f => f.id === pairKey[0])?.name} vs {uploadResult.files.find(f => f.id === pairKey[1])?.name})
+                        </option>
+                    {/if}
+                {/each}
+            </select>
+        </div>
+        {#if selectedPairKey}
+        <div class="pair-shift-control">
+            <label for="shift">Shift File {selectedPairKey[1]}:</label>
+            <button class="shift-btn" on:click={() => {currentShift--; updateShift(currentShift)}}>
+                −
+            </button>
+            <input
+                id="shift"
+                type="range"
+                min="-200"
+                max="200"
+                bind:value={currentShift}
+                on:input={(e) => updateShift(e.target.value)}
+            />
+            <button class="shift-btn" on:click={() => {currentShift++; updateShift(currentShift)}}>
+                +
+            </button>
+            <span on:click={resetShift}>
+                {currentShift} samples
+            </span>
+        </div>
+        {/if}
     </div>
 
-    {#if uploadResult}
+    {#if uploadResult && file1 && file2}
         <div class="grid">
             {#if showWaveform}
                 <div class="grid-item waveform">
@@ -186,35 +256,23 @@
                             <option value={method}>{method}</option>
                         {/each}
                     </select>
-                    <label for="shiftB">Shift File B:</label>
-                    <input
-                        id="shiftB"
-                        type="range"
-                        min="-200"
-                        max="200"
-                        bind:value={$shiftB}
-                    />
-                    <span
-                        on:click={() => {
-                            shiftB.set(0);
-                        }}>{$shiftB} samples</span
-                    >
-                    <WaveformVisualizer analysis={uploadResult} />
+                    <WaveformVisualizer fileA={file1.features} fileB={file2.features} dtw={selectedPairData.dtw} shift={currentShift}/>
                 </div>
             {/if}
 
             {#if showOnsetComparison}
                 <div class="grid-item waveform">
                     <OnsetComparison
-                        onsetsA={uploadResult.features.onsets.fileA}
-                        onsetsB={uploadResult.features.onsets.fileB}
-                        onsetStrengthA={uploadResult.features.onsets_strength
-                            .fileA}
-                        onsetStrengthB={uploadResult.features.onsets_strength
-                            .fileB}
-                        durationA={uploadResult.features.duration.fileA}
-                        durationB={uploadResult.features.duration.fileB}
-                        lengthB={uploadResult.features.length.fileB}
+                        fileAname={file1.name}
+                        fileBname={file2.name}
+                        onsetsA={file1.features.onsets}
+                        onsetsB={file2.features.onsets}
+                        onsetStrengthA={file1.features.onsets_strength}
+                        onsetStrengthB={file2.features.onsets_strength}
+                        durationA={file1.features.duration}
+                        durationB={file2.features.duration}
+                        lengthB={file2.features.length}
+                        shift={currentShift}
                     />
                 </div>
             {/if}
@@ -227,8 +285,10 @@
                         : 'span 1'}"
                 >
                     <MatrixGlyph
-                        title="F0"
-                        analysis={uploadResult}
+                        title="F0 - this needs to be split into two files 1 and 2"
+                        fileA={file1.features} 
+                        fileB={file2.features}
+                        shift={currentShift}
 
                     />
                 </div>
@@ -243,10 +303,10 @@
                 >
                     <LineChart
                         title="F0"
-                        valuesA={uploadResult.features.f0.fileA}
-                        valuesB={uploadResult.features.f0.fileB}
-                        files={uploadResult.files}
-                        lengthB={uploadResult.features.length.fileB}
+                        valuesA={file1.features.f0}
+                        valuesB={file2.features.f0}
+                        lengthB={file2.features.length}
+                        shift={currentShift}
                     />
                 </div>
             {/if}
@@ -260,10 +320,10 @@
                 >
                     <LineChart
                         title="RMS"
-                        valuesA={uploadResult.features.rms.fileA}
-                        valuesB={uploadResult.features.rms.fileB}
-                        files={uploadResult.files}
-                        lengthB={uploadResult.features.length.fileB}
+                        valuesA={file1.features.rms}
+                        valuesB={file2.features.rms}
+                        lengthB={file2.features.length}
+                        shift={currentShift}
                     />
                 </div>
             {/if}
@@ -277,10 +337,10 @@
                 >
                     <LineChart
                         title="Spectral Centroid"
-                        valuesA={uploadResult.features.spectral_centroid.fileA}
-                        valuesB={uploadResult.features.spectral_centroid.fileB}
-                        files={uploadResult.files}
-                        lengthB={uploadResult.features.length.fileB}
+                        valuesA={file1.features.spectral_centroid}
+                        valuesB={file2.features.spectral_centroid}
+                        lengthB={file2.features.length}
+                        shift={currentShift}
                     />
                 </div>
             {/if}
@@ -294,10 +354,10 @@
                 >
                     <LineChart
                         title="Vibrato"
-                        valuesA={uploadResult.features.vibrato.fileA}
-                        valuesB={uploadResult.features.vibrato.fileB}
-                        files={uploadResult.files}
-                        lengthB={uploadResult.features.length.fileB}
+                        valuesA={file1.features.vibrato}
+                        valuesB={file2.features.vibrato}
+                        lengthB={file2.features.length}
+                        shift={currentShift}
                     />
                 </div>
             {/if}
@@ -306,8 +366,9 @@
                 <div class="grid-item other-visualizations">
                     <MatrixChart
                         title="Similarity"
-                        matrix={uploadResult.similarity}
-                        lengthB={uploadResult.features.length.fileB}
+                        matrix={selectedPairData.similarity}
+                        lengthB={file2.features.length}
+                        shift={currentShift}
                     />
                 </div>
             {/if}
@@ -411,5 +472,27 @@
 
     .matrix {
         height: 200px; /* Fixed height for the matrix */
+    }
+
+    .pair-select {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    }
+
+    .pair-select select {
+        padding: 0.2rem 0.4rem;
+    }
+    .shift-btn {
+        width: 32px;
+        height: 28px;
+        font-size: 18px;
+        font-weight: 600;
+        border: 1px solid #ccc;
+        background: #f5f5f5;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.15s;
+        user-select: none;
     }
 </style>

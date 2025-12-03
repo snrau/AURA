@@ -6,8 +6,8 @@
     export let title = "Line Chart";
     export let valuesA = [];
     export let valuesB = [];
-    export let files = [];
     export let lengthB = [];
+    export let shift
 
     let canvas;
     let chart;
@@ -15,10 +15,10 @@
     let shiftedValuesB = [...valuesB];
 
     // Subscribe to the shiftB store and update the shifted values
-    $: shiftB.subscribe((shift) => {
+    $: if(shift !== undefined) {
         shiftedValuesB = applyShift(valuesB, shift, valuesB.length, lengthB);
         updateChart(); // Update the chart whenever the shift changes
-    });
+    }
 
     // Function to apply the shift to the data
     function applyShift(data, shift, dataLength, lengthB) {
@@ -60,7 +60,7 @@
                 labels: Array.from(Array(length).keys()), // x-axis: index/frame
                 datasets: [
                     {
-                        label: files[0],
+                        label: "",
                         data: valuesA,
                         borderColor: "rgba(54, 162, 235, 1)",
                         backgroundColor: "rgba(54, 162, 235, 0.2)",
@@ -68,7 +68,7 @@
                         tension: 0.2,
                     },
                     {
-                        label: files[1],
+                        label: "",
                         data: shiftedValuesB,
                         borderColor: "rgba(255, 99, 132, 1)",
                         backgroundColor: "rgba(255, 99, 132, 0.2)",

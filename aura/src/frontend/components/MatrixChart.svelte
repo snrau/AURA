@@ -14,6 +14,7 @@
     export let cellSize = 3; // pixels per cell
     export let gap = 0; // gap between cells
     export let lengthB = 1;
+    export let shift
 
     let canvas;
     let ctx;
@@ -38,27 +39,45 @@
         return interpolateViridis(t);
     }
 
-    function applyShiftToMatrix(matrix, shift, matrixLength, waveformLength) {
+    function applyShiftToMatrix(originalMatrix, shift, waveformLength) {
         // Scale the shift to match the resolution of the matrix
-        const scaledShift = Math.round((shift / waveformLength) * matrixLength);
+        const rows = originalMatrix.length;
+        const cols = originalMatrix[0].length;
+        const scaledShift = Math.round((shift / waveformLength) * cols);
 
-        if (scaledShift > 0) {
-            // Add rows of zeros at the top and remove rows from the bottom
-            const emptyRow = Array(matrix[0].length).fill(0);
-            for (let i = 0; i < scaledShift; i++) {
-                shiftedMatrix.unshift(emptyRow); // Add a row of zeros at the top
-            }
-            shiftedMatrix.splice(-scaledShift); // Remove rows from the bottom
-        } else if (scaledShift < 0) {
-            // Remove rows from the top and add rows of zeros at the bottom
-            const emptyRow = Array(matrix[0].length).fill(0);
-            shiftedMatrix.splice(0, -scaledShift); // Remove rows from the top
-            for (let i = 0; i < -scaledShift; i++) {
-                shiftedMatrix.push(emptyRow); // Add a row of zeros at the bottom
+        if (scaledShift === 0) {
+            return originalMatrix.map(r => [...r]);
+        }
+        const newMatrix = []
+        
+
+        for (let r = 0; r < rows; r++) {
+            if (scaledShift > 0) {
+            // SHIFT DOWN → zeros at TOP
+            if (r < scaledShift) {
+                // new top rows filled with zeros
+                newMatrix.push(Array(cols).fill(0));
+            } else {
+                // take row from above (shifted position)
+                newMatrix.push([...originalMatrix[r - scaledShift]]);
             }
         }
 
-        return shiftedMatrix;
+        else if (scaledShift < 0) {
+            // SHIFT UP → zeros at BOTTOM
+            const up = -scaledShift;
+
+            if (r >= rows - up) {
+                // new bottom rows filled with zeros
+                newMatrix.push(Array(cols).fill(0));
+            } else {
+                // take row from below (shifted position)
+                newMatrix.push([...originalMatrix[r + up]]);
+            }
+        }
+        }
+
+        return newMatrix;
     }
 
     function drawMatrix() {
@@ -99,18 +118,17 @@
     }
 
     // Subscribe to the shiftB store and update the shifted matrix
-    $: shiftB.subscribe((shift) => {
+    $: if(shift !== undefined) {
         clearTimeout(debounceTimeout); // Clear the previous timeout
         debounceTimeout = setTimeout(() => {
             shiftedMatrix = applyShiftToMatrix(
                 matrix,
                 shift,
-                matrix.length,
                 lengthB,
             );
             drawMatrix(); // Redraw the matrix after the debounce delay
         }, 300); // 300ms debounce delay
-    });
+    };
 
     $: if (ctx) drawMatrix();
 
